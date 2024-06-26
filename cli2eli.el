@@ -108,8 +108,10 @@ TOOL is an alist containing the tool configuration."
             (cmd-desc (or (alist-get 'description cmd) ""))
             (cmd-extra-arguments (cli2eli--value-to-bool (alist-get 'extra_arguments cmd)))
             ; Convert arguments vector to list
-            (args (append (alist-get 'arguments cmd) nil)))
-        (cli2eli--define-command tool-name cmd-name cmd-command cmd-desc cmd-extra-arguments args)))))
+            (args (append (alist-get 'arguments cmd) nil))
+            (chain-call (alist-get 'chain-call cmd))
+            (chain-pass (alist-get 'chain-pass cmd)))
+        (cli2eli--define-command tool-name cmd-name cmd-command cmd-desc cmd-extra-arguments args chain-call chain-pass)))))
 
 (defun cli2eli--sanitize-function-name (name)
   "Replace invalid characters in NAME for use in Emacs function names."
@@ -118,7 +120,7 @@ TOOL is an alist containing the tool configuration."
    "-"
    (downcase name)))
 
-(defun cli2eli--define-command (tool-name cmd-name cmd-command cmd-desc cmd-extra-arguments args)
+(defun cli2eli--define-command (tool-name cmd-name cmd-command cmd-desc cmd-extra-arguments args chain-call chain-pass)
   "Define an Emacs function for a CLI command.
 TOOL-NAME is the name of the CLI tool.
 CMD-NAME is the name of the specific command.
@@ -162,11 +164,38 @@ ARGS is a list of argument specifications."
                         " ")
                        " "
                        additional-args))))
-               (cli2eli--run-command ,cmd-command processed-args))))
+               (let ((result (cli2eli--run-command ,cmd-command processed-args)))
+                 ,(when chain-call
+                    `(let* ((next-func (intern ,(concat tool-name "-" (cli2eli--sanitize-function-name chain-call))))
+                            (next-func-args (cli2eli--get-function-args next-func))
+                            (chain-args (if ,chain-pass
+                                            (cli2eli--prepare-chain-args next-func-args result)
+                                          nil)))
+                       (if chain-args
+                           (apply next-func chain-args)
+                         (call-interactively next-func))))
+                 result)
+               ;; (cli2eli--run-command ,cmd-command processed-args)
+               )))
     ;; Add the newly generated function to the list
     (push func-name cli2eli--generated-functions)
     (message "[CLI2ELI] Generation Done.")))
 
+(defun cli2eli--get-function-args (func)
+  "Get the argument list for FUNC."
+  (help-function-arglist func t))
+
+(defun cli2eli--prepare-chain-args (arg-list result)
+  "Prepare arguments for chained function call based on RESULT."
+  (let ((trimmed-result (string-trim result)))
+    (cond
+     ((= (length arg-list) 1) (list trimmed-result))
+     ((> (length arg-list) 1)
+      (let ((split-result (split-string trimmed-result "\n")))
+        (if (>= (length split-result) (length arg-list))
+            (cl-subseq split-result 0 (length arg-list))
+          (append split-result (make-list (- (length arg-list) (length split-result)) nil)))))
+     (t nil))))
 
 (defun cli2eli--argument-prompt (arg-name arg-desc)
   (if (cli2eli--value-to-bool arg-desc)
