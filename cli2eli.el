@@ -64,13 +64,11 @@
   (dolist (func cli2eli--generated-functions)
     (fmakunbound func)))
 
-(defun cli2eli-load-tool (json-file &optional relative-p)
+(defun cli2eli-load-tool (json-file)
   "Load a CLI tool configuration from JSON-FILE.
 If RELATIVE-P is non-nil, treat JSON-FILE as relative to the package directory."
   (interactive "fSelect JSON configuration file: ")
-  (let* ((file-path (if relative-p
-                        (expand-file-name json-file (file-name-directory (locate-library "cli2eli")))
-                      (expand-file-name json-file)))
+  (let* ((file-path (expand-file-name json-file))
          (json-object-type 'alist)
          (json-array-type 'vector)
          (json-key-type 'symbol)
