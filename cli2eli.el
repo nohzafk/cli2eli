@@ -73,6 +73,15 @@ If RELATIVE-P is non-nil, treat JSON-FILE as relative to the package directory."
     (setq cli2eli--current-tool (json-read-from-string cleaned-json-string))
     (cli2eli--generate-functions cli2eli--current-tool)))
 
+(defun cli2eli--value-to-bool (value)
+  (cond
+   ((null value) nil)
+   ((string= value "") nil)
+   ((string= value "false") nil)
+   ((eq value 0) nil)
+   ((eq value json-false) nil)
+   (t value)))
+
 (defun cli2eli--generate-functions (tool)
   "Generate Emacs functions for the CLI TOOL.
 TOOL is an alist containing the tool configuration."
@@ -82,23 +91,37 @@ TOOL is an alist containing the tool configuration."
     (message "[CLI2ELI] Generating emacs functions for tool: %S" tool-name)
     (dolist (cmd commands)
       (let ((cmd-name (alist-get 'name cmd))
-            (cmd-desc (alist-get 'description cmd))
-            (args (append (alist-get 'arguments cmd) nil)) ; Convert arguments vector to list
-            (cmd-extra-arguments (alist-get 'extra_arguments cmd)))
-        (cli2eli--define-command tool-name cmd-name cmd-desc cmd-extra-arguments args)))))
+            (cmd-command (alist-get 'command cmd))
+            (cmd-desc (or (alist-get 'description cmd) ""))
+            (cmd-extra-arguments (cli2eli--value-to-bool (alist-get 'extra_arguments cmd)))
+            ; Convert arguments vector to list
+            (args (append (alist-get 'arguments cmd) nil)))
+        (cli2eli--define-command tool-name cmd-name cmd-command cmd-desc cmd-extra-arguments args)))))
 
-(defun cli2eli--define-command (tool-name cmd-name cmd-desc cmd-extra-arguments args)
+(defun cli2eli--sanitize-function-name (name)
+  "Replace invalid characters in NAME for use in Emacs function names."
+  (replace-regexp-in-string
+   "[^a-zA-Z0-9-]"
+   "-"
+   (downcase name)))
+
+(defun cli2eli--define-command (tool-name cmd-name cmd-command cmd-desc cmd-extra-arguments args)
   "Define an Emacs function for a CLI command.
 TOOL-NAME is the name of the CLI tool.
 CMD-NAME is the name of the specific command.
+CMD-COMMAND is the actual command.
 CMD-DESC is the description of the command.
+CMD-EXTRA-ARGUMENTS is whether command need additional arguments input.
 ARGS is a list of argument specifications."
-  (let* ((func-name (intern (concat tool-name "-" cmd-name)))
+  (unless cmd-command
+    (error "command of %s %s is nil" tool-name cmd-name))
+
+  (let* ((func-name (intern (concat tool-name "-" (cli2eli--sanitize-function-name cmd-name))))
          (interactive-spec (cli2eli--generate-interactive-spec args cmd-extra-arguments)))
     (message "[CLI2ELI] Generating function: %s" func-name)
     (fset func-name
           `(lambda (&rest arg-values)
-             ,(concat "Run " tool-name " " cmd-name " command. " cmd-desc)
+             ,(concat "Descritpion: " cmd-desc)
              (interactive ,interactive-spec)
              (let* ((required-args
                      (cl-subseq arg-values 0 ,(length args)))
@@ -126,8 +149,14 @@ ARGS is a list of argument specifications."
                         " ")
                        " "
                        additional-args))))
-               (cli2eli--run-command ,tool-name ,cmd-name processed-args))))
+               (cli2eli--run-command ,cmd-command processed-args))))
     (message "[CLI2ELI] Generation Done.")))
+
+
+(defun cli2eli--argument-prompt (arg-name arg-desc)
+  (if (cli2eli--value-to-bool arg-desc)
+      (format "%s (%s): " arg-name arg-desc)
+    (format "%s: " arg-name)))
 
 (defun cli2eli--generate-interactive-spec (args cmd-extra-arguments)
   "Generate the interactive specification for command arguments.
@@ -137,7 +166,7 @@ CMD-EXTRA-ARGUMENTS is a boolean indicating whether extra arguments are needed."
     ,@(mapcar
        (lambda (arg)
          (let* ((arg-name (alist-get 'name arg))
-                (arg-desc (replace-regexp-in-string "\n" " " (alist-get 'description arg)))
+                (arg-desc (replace-regexp-in-string "\n" " " (or (alist-get 'description arg) "")))
                 (arg-type (alist-get 'type arg))
                 (choices (alist-get 'choices arg)))
            (cond
@@ -145,7 +174,7 @@ CMD-EXTRA-ARGUMENTS is a boolean indicating whether extra arguments are needed."
              `(directory-file-name
                (file-truename
                 (expand-file-name
-                 (read-directory-name ,(format "%s (%s): " arg-name arg-desc))))))
+                 (read-directory-name ,(cli2eli--argument-prompt arg-name arg-desc))))))
             (choices
              `(let ((completion-ignore-case t)
                     (choices (mapcar (lambda (choice)
@@ -154,11 +183,11 @@ CMD-EXTRA-ARGUMENTS is a boolean indicating whether extra arguments are needed."
                                         ((eq choice json-false) "false")
                                         (t (format "%s" choice))))
                                      ',choices)))
-                (completing-read ,(format "%s (%s): " arg-name arg-desc)
+                (completing-read ,(cli2eli--argument-prompt arg-name arg-desc)
                                  choices
                                  nil t)))
             (t
-             `(read-string ,(format "%s (%s): " arg-name arg-desc))))))
+             `(read-string ,(cli2eli--argument-prompt arg-name arg-desc))))))
        args)
     ,@(when cmd-extra-arguments
         '((read-string "Extra arguments: ")))))
@@ -173,16 +202,18 @@ CMD-EXTRA-ARGUMENTS is a boolean indicating whether extra arguments are needed."
      ((string= cwd "git-root") (or (locate-dominating-file "." ".git") default-directory))
      (t (expand-file-name cwd)))))
 
-(defun cli2eli--run-command (tool-name cmd-name &optional args)
+(defun cli2eli--run-command (cmd-command &optional processed-args)
   "Run a CLI command asynchronously and display output in a dedicated buffer.
-TOOL-NAME is the name of the CLI tool.
-CMD-NAME is the name of the specific command.
-ARGS is an optional string of additional arguments."
-  (message "[CLI2ELI] Running command with tool-name: %S, cmd-name: %S, args: %S" tool-name cmd-name args)
+CMD-COMMAND is the specific command.
+PROCESSED-ARGS is an optional string of additional arguments."
+
   (let* ((output-buffer (get-buffer-create cli2eli-output-buffer-name))
-         (args (or args ""))
-         (command (format "%s %s %s" tool-name cmd-name args))
+         (processed-args (or processed-args ""))
+         (command (format "%s %s" cmd-command processed-args))
          (cwd (cli2eli--get-working-directory)))
+
+    (message "[CLI2ELI] Running command: %s" command)
+
     (with-current-buffer output-buffer
       (cli2eli--output-mode)
       (let ((inhibit-read-only t))
@@ -190,6 +221,7 @@ ARGS is an optional string of additional arguments."
         (insert (format "Working Directory: %s\nRunning: %s\n\n" cwd command))))
 
     (display-buffer output-buffer '(display-buffer-at-bottom . ((window-height . 0.3))))
+
     (make-process
      :name "cli2eli-process"
      :buffer output-buffer
