@@ -121,7 +121,7 @@ ARGS is a list of argument specifications."
     (message "[CLI2ELI] Generating function: %s" func-name)
     (fset func-name
           `(lambda (&rest arg-values)
-             ,(concat "Descritpion: " cmd-desc)
+             ,(concat "" cmd-desc)
              (interactive ,interactive-spec)
              (let* ((required-args
                      (cl-subseq arg-values 0 ,(length args)))
@@ -186,11 +186,29 @@ CMD-EXTRA-ARGUMENTS is a boolean indicating whether extra arguments are needed."
                 (completing-read ,(cli2eli--argument-prompt arg-name arg-desc)
                                  choices
                                  nil t)))
+            ((string= arg-type "dynamic-select")
+             `(cli2eli--dynamic-select
+               ',(alist-get 'command arg)
+               ,(or (alist-get 'prompt arg) "")
+               ',(alist-get 'transform arg)))
             (t
              `(read-string ,(cli2eli--argument-prompt arg-name arg-desc))))))
        args)
     ,@(when cmd-extra-arguments
         '((read-string "Extra arguments: ")))))
+
+(defun cli2eli--dynamic-select (command prompt transform)
+  "Run COMMAND, present results for selection with PROMPT, and apply TRANSFORM."
+  (let* ((output (shell-command-to-string command))
+         (lines (split-string output "\n" t))
+         (selection (completing-read prompt lines nil t))
+         (transformed (if transform
+                          (shell-command-to-string
+                           (format "echo %s | %s"
+                                   (shell-quote-argument selection)
+                                   transform))
+                        selection)))
+    (string-trim transformed)))
 
 (defun cli2eli--get-working-directory ()
   "Get the working directory based on the tool configuration."
