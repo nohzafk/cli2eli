@@ -1,0 +1,68 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "tool": {
+      "type": "string"
+    },
+    "cwd": {
+      "type": "string"
+    },
+    "commands": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "command": {
+            "type": "string"
+          },
+          "arguments": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "choices": {
+                  "type": "array"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "type": {
+                    "type": "string",
+                    "pattern": "directory|dynamic-select"
+                },
+                "command": {
+                  "type": "string"
+                },
+                "prompt": {
+                  "type": "string"
+                },
+                "transform": {
+                  "type": "string"
+                }
+              },
+              "required": ["name"]
+            }
+          },
+          "chain-call": {
+            "type": "string"
+          },
+          "china-pass": {
+            "type": "boolean"
+          }
+        },
+        "required": ["name", "command"]
+      }
+    }
+  },
+  "required": ["tool", "cwd", "commands"]
+}

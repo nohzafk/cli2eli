@@ -56,12 +56,11 @@ devcontainer up
 devcontainer build
 ```
 
-Manually typing these commands in a terminal is time-consuming and error-prone. CLI2ELI addresses this by:
+Manually typing these commands in a terminal is time-consuming and error-prone, I'm just tired with repeatly typing those commands. CLI2ELI addresses this by:
 
 1. Allowing these commands to be executed directly from within Emacs
 2. Providing an interactive interface for selecting containers or other dynamic values
 3. Enabling command chaining for complex operations (e.g., stop and remove a container in one step)
-4. Ensuring consistent command execution across a development team
 
 For example, with CLI2ELI, a developer could use write a chain command and use `M-x devcontainer-delete-container` to interactively select and remove a Docker container, all without leaving Emacs or manually constructing the command string.
 
@@ -135,10 +134,7 @@ The `$$` will be replaced with the user's input, maintaining the required "optio
       "command": "docker run",
       "arguments": [
         {
-          "name": "-it"
-        },
-        {
-          "name": "--name",
+          "name": "-it --name",
           "description": "Container name"
         }
       ],
@@ -170,8 +166,9 @@ The `extra_arguments` field allows users to input additional arguments when call
     }
   ]
 }
+
 ```
-This example shows how to configure a command with multiple arguments.
+User will be prompted to input value for each argument.
 
 ### 4. Choices
 ```json
@@ -251,7 +248,7 @@ docker ps --format '{{.ID}} {{.Names}}' | grep <something> | awk '{print $1}'
   "tool": "docker",
   "commands": [
     {
-      "name": "delete-container",
+      "name": "delete container",
       "command": "docker stop",
       "arguments": [
         {
@@ -280,6 +277,10 @@ docker ps --format '{{.ID}} {{.Names}}' | grep <something> | awk '{print $1}'
 }
 ```
 The `chain-call` and `chain-pass` fields allow for sequential execution of commands. In this example, after stopping a container, it will automatically prompt to remove it. This chaining can be cancelled at any point using `Ctrl-g`, providing flexibility in the workflow.
+
+In this example, when `chain-pass` is set to `true`, the result of the `delete container` command is passed to the `remove container` command for selection. This is instead of using the command defined in the `remove container` argument. As a result, after the container is stopped, running `docker ps` again won't display the container.
+
+If you don't need to pass on the value, set `chain-pass` to `false` or leave this field unset.
 
 ## License
 CLI2ELI is released under the [MIT License](LICENSE.md). Feel free to use, modify, and distribute it as per the license terms.
