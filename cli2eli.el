@@ -105,8 +105,7 @@ TOOL is an alist containing the tool configuration."
             (cmd-command (alist-get 'command cmd))
             (cmd-desc (or (alist-get 'description cmd) ""))
             (cmd-extra-arguments (cli2eli--value-to-bool (alist-get 'extra_arguments cmd)))
-            ; Convert arguments vector to list
-            (args (append (alist-get 'arguments cmd) nil))
+            (args (append (alist-get 'arguments cmd) nil))      ; Convert arguments vector to list
             (chain-call (alist-get 'chain-call cmd))
             (chain-pass (alist-get 'chain-pass cmd)))
         (cli2eli--define-command tool-name cmd-name cmd-command cmd-desc cmd-extra-arguments args chain-call chain-pass)))))
@@ -125,7 +124,9 @@ CMD-NAME is the name of the specific command.
 CMD-COMMAND is the actual command.
 CMD-DESC is the description of the command.
 CMD-EXTRA-ARGUMENTS is whether command need additional arguments input.
-ARGS is a list of argument specifications."
+ARGS is a list of argument specifications.
+CHAIN-CALL is the next executed interactive command.
+CHAIN-PASS is whethe pass the result to CHAIN-CALL command."
   (unless cmd-command
     (error "Command of %s %s is nil" tool-name cmd-name))
 
@@ -237,7 +238,7 @@ CMD-EXTRA-ARGUMENTS is a boolean indicating whether extra arguments are needed."
      ((string= cwd "") default-directory)
      ((string= cwd "default") default-directory)
      ((string= cwd "git-root") (or (locate-dominating-file "." ".git") default-directory))
-     (t (expand-file-name cwd)))))
+     (t cwd))))
 
 (defun cli2eli--run-command (cmd-command &optional processed-args)
   "Run a CLI command asynchronously and display output in a dedicated buffer.
@@ -247,7 +248,7 @@ PROCESSED-ARGS is an optional string of additional arguments."
   (let* ((output-buffer (get-buffer-create cli2eli-output-buffer-name))
          (processed-args (or processed-args ""))
          (command (format "%s %s" cmd-command processed-args))
-         (cwd (cli2eli--get-working-directory)))
+         (cwd (expand-file-name (cli2eli--get-working-directory))))
 
     (message "[CLI2ELI] Running command: %s" command)
 
@@ -262,8 +263,9 @@ PROCESSED-ARGS is an optional string of additional arguments."
     (make-process
      :name "cli2eli-process"
      :buffer output-buffer
-     :command (split-string command)
-     :directory cwd
+     :command (list "bash"
+                    "-c"
+                    (format "cd %s && %s" (shell-quote-argument cwd) command))
      :filter (lambda (proc string)
                (when (buffer-live-p (process-buffer proc))
                  (with-current-buffer (process-buffer proc)
