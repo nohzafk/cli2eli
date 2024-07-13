@@ -22,6 +22,13 @@
 (require 'json)
 (require 'term)
 
+(eval-when-compile
+  (defvar cli2eli-use-eat
+    (condition-case nil
+        (progn (require 'eat) t)
+      (error nil))
+    "Whether to use eat instead of term."))
+
 (defgroup cli2eli nil
   "Command line interface to Emacs Lauch interface."
   :group 'eamcs)
@@ -268,18 +275,29 @@ PROCESSED-ARGS is an optional string of additional arguments."
     (message "[CLI2ELI] Running command: %s" command)
 
     (with-current-buffer output-buffer
-      (term-mode)
-      (erase-buffer)
-      (setq default-directory cwd)
-      (insert (format "Working Directory: %s\nRunning: %s\n\n" cwd command))
-      (term-exec output-buffer
-                 (format "\"%s\"" command)
-                 "/bin/bash"
-                 nil
-                 (list "-c" (format "cd %s && %s"
-                                    (shell-quote-argument cwd)
-                                    command)))
-      (set-process-sentinel (get-buffer-process output-buffer) #'cli2eli--process-sentinel))
+      (let ((inhibit-read-only t))
+        (if cli2eli-use-eat
+            (eat-mode)
+          (term-mode))
+        (erase-buffer)
+        (setq default-directory cwd)
+        (insert (format "Working Directory: %s\nRunning: %s\n\n" cwd command))
+
+        (if cli2eli-use-eat
+            (eat-exec output-buffer
+                      (format "\"%s\"" command)
+                      "/bin/bash"
+                      nil
+                      (list "-c" (format "cd %s && %s"
+                                         (shell-quote-argument cwd)
+                                         command)))
+          (term-exec output-buffer
+                     (format "\"%s\"" command)
+                     "/bin/bash"
+                     nil
+                     (list "-c" (format "cd %s && %s"
+                                        (shell-quote-argument cwd)
+                                        command))))))
 
     (if existing-window
         (select-window existing-window)
@@ -307,4 +325,3 @@ PROCESSED-ARGS is an optional string of additional arguments."
 (provide 'cli2eli)
 
 ;;; cli2eli.el ends here
-
