@@ -59,10 +59,27 @@
 (defvar cli2eli--current-tool nil
   "Store the current tool configuration.")
 
-(defun cli2eli--remove-generated-functions ()
+(defun cli2eli-remove-generated-functions ()
   "Remove all previously generated CLI2ELI functions."
+  (interactive)
   (dolist (func cli2eli--generated-functions)
-    (fmakunbound func)))
+    (fmakunbound func))
+  (setq cli2eli--generated-functions nil))
+
+(defun cli2eli--generate-function-name (tool-name cmd-name)
+  "Generate function name by TOOL-NAME CMD-NAME."
+  (cli2eli--sanitize-function-name (concat tool-name "-" cmd-name)))
+
+(defun cli2eli--remove-replaced-functions (tool-name commands)
+  "Remove functions that will be replaced by the new tool configuration.
+TOOL-NAME is the name of the CLI tool.
+COMMANDS is a list of command configurations."
+  (dolist (cmd commands)
+    (let* ((cmd-name (alist-get 'name cmd))
+           (func-name (intern (cli2eli--generate-function-name tool-name cmd-name))))
+      (when (fboundp func-name)
+        (fmakunbound func-name)
+        (setq cli2eli--generated-functions (delete func-name cli2eli--generated-functions))))))
 
 (defun cli2eli-load-tool (json-file)
   "Load a CLI tool configuration from JSON-FILE.
@@ -75,13 +92,15 @@ If RELATIVE-P is non-nil, treat JSON-FILE as relative to the package directory."
          (json-string (with-temp-buffer
                         (insert-file-contents file-path)
                         (buffer-string)))
-         (cleaned-json-string (cli2eli--remove-comments json-string)))
-    ;; Remove previously generated functions
-    (cli2eli--remove-generated-functions)
-    ;; Clear the list of generated functions
-    (setq cli2eli--generated-functions nil)
+         (cleaned-json-string (cli2eli--remove-comments json-string))
+         (new-tool (json-read-from-string cleaned-json-string))
+         (tool-name (alist-get 'tool new-tool))
+         (commands-vector (alist-get 'commands new-tool))
+         (commands (append commands-vector nil)))
+    ;; Remove functions that will be replaced
+    (cli2eli--remove-replaced-functions tool-name commands)
     ;; Load new tool configuration
-    (setq cli2eli--current-tool (json-read-from-string cleaned-json-string))
+    (setq cli2eli--current-tool new-tool)
     (cli2eli--generate-functions cli2eli--current-tool)))
 
 (defun cli2eli--value-to-bool (value)
@@ -130,7 +149,7 @@ CHAIN-PASS is whethe pass the result to CHAIN-CALL command."
   (unless cmd-command
     (error "Command of %s %s is nil" tool-name cmd-name))
 
-  (let* ((func-name (intern (concat tool-name "-" (cli2eli--sanitize-function-name cmd-name))))
+  (let* ((func-name (intern (cli2eli--generate-function-name tool-name cmd-name)))
          (interactive-spec (cli2eli--generate-interactive-spec args cmd-extra-arguments)))
     (message "[CLI2ELI] Generating function: %s" func-name)
     (fset func-name
@@ -248,7 +267,8 @@ PROCESSED-ARGS is an optional string of additional arguments."
   (let* ((output-buffer (get-buffer-create cli2eli-output-buffer-name))
          (processed-args (or processed-args ""))
          (command (format "%s %s" cmd-command processed-args))
-         (cwd (expand-file-name (cli2eli--get-working-directory))))
+         (cwd (expand-file-name (cli2eli--get-working-directory)))
+         (existing-window (get-buffer-window output-buffer)))
 
     (message "[CLI2ELI] Running command: %s" command)
 
@@ -258,7 +278,10 @@ PROCESSED-ARGS is an optional string of additional arguments."
         (erase-buffer)
         (insert (format "Working Directory: %s\nRunning: %s\n\n" cwd command))))
 
-    (display-buffer output-buffer '(display-buffer-at-bottom . ((window-height . 0.3))))
+    (if existing-window
+        (select-window existing-window)
+      (display-buffer output-buffer '(display-buffer-at-bottom . ((window-height . 0.3))))
+      (select-window (get-buffer-window output-buffer)))
 
     (make-process
      :name "cli2eli-process"
