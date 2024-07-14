@@ -77,8 +77,18 @@ For example, with CLI2ELI, a developer could use write a chain command and use `
 
 While not intended to replace the terminal entirely, CLI2ELI significantly streamlines common development tasks by integrating them directly into the Emacs environment, reducing context switching and improving workflow efficiency.
 
+## Configuration Options
 
-## Configuration Examples
+### 0. JSON Schema
+
+Use json-schema to help to write configuration JSON, add a "$schema" field to the json file.
+
+```json
+"$schema": "https://raw.githubusercontent.com/nohzafk/cli2eli/main/cli2eli-schema.json",
+```
+
+i.e. using VSCode
+
 
 ### 1. Simple wrapper
 ```json
@@ -306,6 +316,91 @@ The `chain-call` and `chain-pass` fields allow for sequential execution of comma
 In this example, when `chain-pass` is set to `true`, the result of the `delete container` command is passed to the `remove container` command for selection. This is instead of using the command defined in the `remove container` argument. As a result, after the container is stopped, running `docker ps` again won't display the container.
 
 If you don't need to pass on the value, set `chain-pass` to `false` or leave this field unset.
+
+
+## Configuration Examples
+
+### wrap a simple tool
+```json
+{
+  "$schema": "https://raw.githubusercontent.com/nohzafk/cli2eli/main/cli2eli-schema.json",
+  "tool": "cli-gleam",
+  "cwd": "git-root",
+  "commands": [
+    {
+      "name": "test",
+      "command": "gleam build && gleam test"
+    },
+    {
+      "name": "add",
+      "command": "gleam add",
+      "arguments": [{ "name": "$$", "description": "package name" }]
+    }
+  ]
+}
+```
+
+This will generate two Emacs commands:
+- `cli-gleam-test`, this is equivalent to execute `gleam build && gleam test`
+- `cli-gleam-add`, when executed you will be asked to input the package name in the **minibuffer**, this is equivalent to execute `gleam add <package name>`.
+
+### wrap devcontainer
+```json
+{
+  "$schema": "https://raw.githubusercontent.com/nohzafk/cli2eli/main/cli2eli-schema.json",
+  "tool": "cli-devcontainer",
+  "cwd": "git-root",
+  "commands": [
+    {
+      "name": "build",
+      "command": "devcontainer build",
+      "arguments": [
+        {
+          "name": "--workspace-folder",
+          "choices": ["."]
+        },
+        {
+          "name": "--no-cache=$$",
+          "description": "Builds the image with `--no-cache`.",
+          "choices": [false, true]
+        }
+      ]
+    },
+    {
+      "name": "delete container",
+      "description": "select a devcontainer, stop and delete it and create a new one.",
+      "command": "docker",
+      "arguments": [
+        {
+          "name": "stop",
+          "type": "dynamic-select",
+          "command": "docker ps | grep -v CONTAINER",
+          "prompt": "Select a container: ",
+          "transform": "awk '{print $1}'"
+        }
+      ],
+      "chain-call": "remove container",
+      "china-pass": true
+    },
+    {
+      "name": "remove container",
+      "command": "docker",
+      "arguments": [
+        {
+          "name": "rm",
+          "type": "dynamic-select",
+          "command": "docker ps",
+          "prompt": "Select a container: ",
+          "transform": "awk '{print $1}'"
+        }
+      ]
+    }
+  ]
+}
+```
+
+- execute `cli-devcontailer-build`, you will be asked to choice value for option `--workspace-folder` and option `--no-cache`
+- execute `cli-devcontainer-delete-container`, you will be asked to select a container from the return result of `docker ps | -v CONTAINER`, the selected line will be passed to `awk '{print $1}'` and then execute `docker stop <value>`, after the execution, another interactive function `cli-devcontainer-remove-container` will be invoked to delete the container.
 
 ## License
 CLI2ELI is released under the [MIT License](LICENSE.md). Feel free to use, modify, and distribute it as per the license terms.
