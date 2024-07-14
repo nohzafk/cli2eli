@@ -11,10 +11,12 @@ CLI2ELI is an Emacs package that generates interactive Emacs functions from comm
 - Context-aware command execution (e.g., from git root)
 
 ## Installation
+
+### manually
 To install CLI2ELI:
 1. Clone this repository to your local machine.
 2. Add the following lines to your Emacs configuration file:
-```emacs-lisp
+```lisp
 (add-to-list 'load-path "/path/to/CLI2ELI")
 (require 'cli2eli)
 ```
@@ -44,6 +46,11 @@ Use `M-x cli2eli-load-tool` to select a JSON file to load the configuration. Alt
 ```
 
 After generating the interactive functions, you can directly invoke the commands associated with your external CLI tools in Emacs. Each command will have a unique prefix, as specified in your JSON configuration, ensuring easy access and organization.
+
+### EAT
+
+[eat](https://codeberg.org/akib/emacs-eat) will be used if it is installed, otherwise fallback to built-in `term`, for displaying the command output buffer and start process asynchronously, becasuse it is blazingly fast.
+
 
 ## Motivation
 During software development, especially in containerized environments, developers often find themselves repeatedly executing similar command sequences. For instance:
