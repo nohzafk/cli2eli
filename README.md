@@ -1,7 +1,11 @@
 # Command Line Interface to Emacs Launch Interface (CLI2ELI)
 
 ## Overview
+Wrap any command-line tool to Emacs commands easily.
+
+
 CLI2ELI is an Emacs package that generates interactive Emacs functions from command-line tool specifications. It allows seamless integration and execution of external CLI tools within Emacs, enhancing developer workflow and productivity.
+
 
 ## Features
 - Dynamic generation of Emacs **interactive functions** from JSON specifications
