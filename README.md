@@ -4,6 +4,8 @@
 Wrap any command-line tool to Emacs commands easily.
 
 
+![](docs/out.gif)
+
 CLI2ELI is an Emacs package that generates interactive Emacs functions from command-line tool specifications. It allows seamless integration and execution of external CLI tools within Emacs, enhancing developer workflow and productivity.
 
 
@@ -89,6 +91,7 @@ Use json-schema to help to write configuration JSON, add a "$schema" field to th
 
 i.e. using VSCode
 
+![](docs/json-schema.jpeg)
 
 ### 1. Simple wrapper
 ```json
