@@ -103,6 +103,20 @@ the default behavior is to append a space between argument and argument value
 
 `devcontaienr up --workspace-folder <input-value>`
 
+#### Specify shell
+
+Specify which shell to be used to execute the command, if "shell" field is omitted, default value is `/bin/bash`.
+
+```json
+{
+"tool": "mytool",
+"shell": "/bin/zsh",
+"commands": [
+  // ... command definitions ...
+ ]
+}
+```
+
 ####  Replace variable instead of appending with space
 
 ```json
