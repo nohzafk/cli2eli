@@ -20,9 +20,7 @@ Inspect a container using jless
 - Support for various argument types: free text, choices, directory paths, and dynamic selections
 - Command chaining for complex operations
 - Context-aware command execution (e.g., from git root)
-
-
-When editing remote file inside a **container** via TRAMP, commands are always run in local machine.
+- Support running commands locally even when editing remote file in a **container**
 
 ## Installation
 
