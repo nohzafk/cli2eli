@@ -21,6 +21,9 @@ Inspect a container using jless
 - Command chaining for complex operations
 - Context-aware command execution (e.g., from git root)
 
+
+When editing remote file inside a **container** via TRAMP, commands are always run in local machine.
+
 ## Installation
 
 ### manually

@@ -244,27 +244,56 @@ CMD-EXTRA-ARGUMENTS is a boolean indicating whether extra arguments are needed."
         '((read-string "Extra arguments: ")))))
 
 (defun cli2eli--dynamic-select (command prompt transform)
-  "Run COMMAND, present results for selection with PROMPT, and apply TRANSFORM."
-  (let* ((output (shell-command-to-string command))
+  "Run COMMAND, present results for selection with PROMPT, and apply TRANSFORM.
+
+Always execute command on the local host by calling execute-local-comand,
+regardless of editing a local file or a remote file through Tramp."
+  (let* ((output (execute-local-command command))
          (lines (split-string output "\n" t))
          (selection (completing-read prompt lines nil t))
          (transformed (if transform
-                          (shell-command-to-string
+                          (execute-local-command
                            (format "echo %s | %s"
                                    (shell-quote-argument selection)
                                    transform))
                         selection)))
     (string-trim transformed)))
 
+(defun execute-local-command (command)
+  "Execute COMMAND on the local host and return its output as a string."
+  (with-temp-buffer
+    (call-process-shell-command command nil (current-buffer) nil)
+    (buffer-string)))
+
 (defun cli2eli--get-working-directory ()
-  "Get the working directory based on the tool configuration."
+  "Get the working directory."
   (let ((cwd (alist-get 'cwd cli2eli--current-tool)))
     (cond
-     ((null cwd) default-directory)
-     ((string= cwd "") default-directory)
-     ((string= cwd "default") default-directory)
-     ((string= cwd "git-root") (or (locate-dominating-file "." ".git") default-directory))
+     ((null cwd) (cli2eli--get-default-directory))
+     ((string= cwd "") (cli2eli--get-default-directory))
+     ((string= cwd "default") (cli2eli--get-default-directory))
+     ((string= cwd "git-root") (locate-dominating-file
+                                (or (cli2eli--get-default-directory) ".")
+                                ".git"))
      (t cwd))))
+(defun cli2eli--get-default-directory ()
+  "Get the appropriate default directory, handling Docker container cases."
+  (if (and (file-remote-p default-directory)
+           (string-prefix-p "/docker:" default-directory))
+      (cli2eli--get-docker-local-folder)
+    default-directory))
+
+(defun cli2eli--get-docker-local-folder ()
+  "Get the local folder path for a Docker container."
+  (let* ((file-name (tramp-dissect-file-name default-directory))
+         (container-name (tramp-file-name-host file-name))
+         (inspect-command (format "docker inspect -f '{{ index .Config.Labels \"devcontainer.local_folder\" }}' %s"
+                                  container-name))
+         (local-folder (string-trim (execute-local-command inspect-command))))
+    (message "local-folder %s" local-folder)
+    (if (string-empty-p local-folder)
+        default-directory
+      local-folder)))
 
 (defun cli2eli--run-command (cmd-command &optional processed-args)
   "Run a CLI command asynchronously and display output in a dedicated buffer.
@@ -277,6 +306,7 @@ PROCESSED-ARGS is an optional string of additional arguments."
          (existing-window (get-buffer-window output-buffer))
          (shell (or (alist-get 'shell cli2eli--current-tool) "/bin/bash")))
 
+    (message "[CLI2ELI] Working Directory: %s" (cli2eli--get-working-directory))
     (message "[CLI2ELI] Running command: %s" command)
 
     (with-current-buffer output-buffer
