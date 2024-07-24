@@ -8,6 +8,11 @@ Wrap any command-line tool to Emacs commands easily.
 
 CLI2ELI is an Emacs package that generates interactive Emacs functions from command-line tool specifications. It allows seamless integration and execution of external CLI tools within Emacs, enhancing developer workflow and productivity.
 
+## Showcase
+
+Inspect a container using jless
+
+![](docs/jless.gif)
 
 ## Features
 - Dynamic generation of Emacs **interactive functions** from JSON specifications
@@ -346,6 +351,30 @@ If you don't need to pass on the value, set `chain-pass` to `false` or leave thi
 This will generate two Emacs commands:
 - `cli-gleam-test`, this is equivalent to execute `gleam build && gleam test`
 - `cli-gleam-add`, when executed you will be asked to input the package name in the **minibuffer**, this is equivalent to execute `gleam add <package name>`.
+
+### inspect a container using jless
+```json
+{
+  "$schema": "https://raw.githubusercontent.com/nohzafk/cli2eli/main/cli2eli-schema.json",
+  "tool": "cli-devcontainer",
+  "cwd": "git-root",
+  "commands": [
+    {
+      "name": "inspect container",
+      "command": "docker",
+      "arguments": [
+        {
+          "name": "inspect --type container $$ | jless",
+          "type": "dynamic-select",
+          "command": "docker ps",
+          "prompt": "Select a container: ",
+          "transform": "awk '{print $1}'"
+        }
+      ]
+    }
+  ]
+}
+```
 
 ### wrap devcontainer
 ```json
