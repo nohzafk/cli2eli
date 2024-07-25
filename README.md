@@ -10,9 +10,36 @@ CLI2ELI is an Emacs package that generates interactive Emacs functions from comm
 
 ## Showcase
 
-Inspect a container using jless
+### Inspect a container using jless
 
 ![](docs/jless.gif)
+
+
+### Works with justfile
+
+If you already have a [justfile](https://github.com/casey/just), simply wrap it with following config, now you can select a `just` command to run in Emacs.
+
+```json
+{
+  "$schema": "https://raw.githubusercontent.com/nohzafk/cli2eli/main/cli2eli-schema.json",
+  "tool": "cli-just",
+  "cwd": "git-root",
+  "commands": [
+    {
+      "name": "just",
+      "command": "just",
+      "arguments": [
+        {
+          "name": "$$",
+          "type": "dynamic-select",
+          "command": "just -l | grep -v Available",
+          "prompt": "Select a recieps: "
+        }
+      ]
+    }
+  ]
+}
+```
 
 ## Features
 - Dynamic generation of Emacs **interactive functions** from JSON specifications
