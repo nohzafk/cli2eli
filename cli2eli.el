@@ -248,22 +248,24 @@ CMD-EXTRA-ARGUMENTS is a boolean indicating whether extra arguments are needed."
 
 Always execute command on the local host by calling execute-local-comand,
 regardless of editing a local file or a remote file through Tramp."
-  (let* ((output (execute-local-command command))
+  (let* ((working-directory (cli2eli--get-working-directory))
+         (output (execute-local-command command working-directory))
          (lines (split-string output "\n" t))
          (selection (completing-read prompt lines nil t))
          (transformed (if transform
                           (execute-local-command
-                           (format "echo %s | %s"
-                                   (shell-quote-argument selection)
-                                   transform))
+                           (format "echo %s | %s" (shell-quote-argument selection) transform)
+                           working-directory)
                         selection)))
     (string-trim transformed)))
 
-(defun execute-local-command (command)
-  "Execute COMMAND on the local host and return its output as a string."
+(defun execute-local-command (command &optional directory)
+  "Execute COMMAND on the local host and return its output as a string.
+If DIRECTORY is provided, execute the command in that directory."
   (with-temp-buffer
-    (call-process-shell-command command nil (current-buffer) nil)
-    (buffer-string)))
+    (let ((default-directory (or directory default-directory)))
+      (call-process-shell-command command nil (current-buffer) nil)
+      (buffer-string))))
 
 (defun cli2eli--get-working-directory ()
   "Get the working directory."
@@ -276,6 +278,7 @@ regardless of editing a local file or a remote file through Tramp."
                                 (or (cli2eli--get-default-directory) ".")
                                 ".git"))
      (t cwd))))
+
 (defun cli2eli--get-default-directory ()
   "Get the appropriate default directory, handling Docker container cases."
   (if (and (file-remote-p default-directory)
@@ -290,7 +293,6 @@ regardless of editing a local file or a remote file through Tramp."
          (inspect-command (format "docker inspect -f '{{ index .Config.Labels \"devcontainer.local_folder\" }}' %s"
                                   container-name))
          (local-folder (string-trim (execute-local-command inspect-command))))
-    (message "local-folder %s" local-folder)
     (if (string-empty-p local-folder)
         default-directory
       local-folder)))
