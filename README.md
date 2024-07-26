@@ -8,6 +8,15 @@ Wrap any command-line tool to Emacs commands easily.
 
 CLI2ELI is an Emacs package that generates interactive Emacs functions from command-line tool specifications. It allows seamless integration and execution of external CLI tools within Emacs, enhancing developer workflow and productivity.
 
+## Philosophy
+
+Emacs should easily integrate external command-line tools.
+
+This saying captures the essence of Emacs:
+
+> The core idea of Emacs is to have an expressive digital material and an open-ended, user-extensible set of commands that manipulate that material and can be quickly invoked.
+> Obviously, this model can be fruitfully applied to any digital material, not just plain text. [- X](https://x.com/msimoni/status/1727669091870101549?s=46)
+
 ## Showcase
 
 ### Inspect a container using jless
