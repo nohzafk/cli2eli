@@ -38,7 +38,7 @@
                 },
                 "type": {
                     "type": "string",
-                    "pattern": "directory|dynamic-select"
+                    "pattern": "current-file|directory|dynamic-select"
                 },
                 "command": {
                   "type": "string"

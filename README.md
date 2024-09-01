@@ -270,7 +270,9 @@ User will be prompted to input value for each argument.
 ```
 The `choices` field provides a predefined list of options for the user to choose from.
 
-### 5. Directory type
+### 5. argument type
+
+#### 5.1 directory
 ```json
 {
   "tool": "project",
@@ -293,7 +295,7 @@ The `"type": "directory"` specification in the argument prompts the user to sele
 
 These additional examples showcase more advanced features of CLI2ELI, allowing for greater flexibility in command construction and argument input.
 
-### 6. Dynamic select
+#### 5.2 dynamic-select
 ```json
 {
   "tool": "docker",
@@ -322,7 +324,27 @@ This is equal to
 docker ps --format '{{.ID}} {{.Names}}' | grep <something> | awk '{print $1}'
 ```
 
-### 7. Chain call
+#### 5.3 current-file
+```json
+{
+  "tool": "quick-run",
+  "commands": [
+    {
+      "name": "pytest",
+      "arguments": [
+        {
+          "name": "-s $$",
+          "type": "current-file"
+        }
+      ]
+    }
+  ]
+}
+```
+
+The `current-file` type will use `(buffer-file-name)` to get the path of the current file. This will automatically pass the path of the current file to the argument when the command is executed, without requiring user to input the value.
+
+### 6. Chain call
 ```json
 {
   "tool": "docker",

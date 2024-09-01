@@ -231,6 +231,8 @@ CMD-EXTRA-ARGUMENTS is a boolean indicating whether extra arguments are needed."
                (file-truename
                 (expand-file-name
                  (read-directory-name ,(cli2eli--argument-prompt arg-name arg-desc))))))
+            ((string= arg-type "current-file")
+             `(or (buffer-file-name) ""))
             (choices
              `(let ((completion-ignore-case t)
                     (choices (mapcar (lambda (choice)
