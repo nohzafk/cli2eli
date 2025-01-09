@@ -18,12 +18,6 @@ This saying captures the essence of Emacs:
 > Obviously, this model can be fruitfully applied to any digital material, not just plain text. [- X](https://x.com/msimoni/status/1727669091870101549?s=46)
 
 ## Showcase
-
-### Inspect a container using jless
-
-![](docs/jless.gif)
-
-
 ### Works with justfile
 
 If you already have a [justfile](https://github.com/casey/just), simply wrap it with following config, now you can select a `just` command to run in Emacs.
@@ -49,6 +43,42 @@ If you already have a [justfile](https://github.com/casey/just), simply wrap it 
   ]
 }
 ```
+
+### Works with docker compose
+
+If you have multiple services defined in `docker-compose.yaml`, you can select a service and input a command to be executed inside the running service container. For example, select a service and run bash to use the terminal inside the container.
+
+Quick and effective.
+
+```json
+{
+  "$schema": "https://raw.githubusercontent.com/nohzafk/cli2eli/main/cli2eli-schema.json",
+  "tool": "cli-docker-compose",
+  "cwd": "git-root",
+  "commands": [
+    {
+      "name": "execute",
+      "command": "docker compose exec",
+      "arguments": [
+        {
+          "name": "$$",
+          "type": "dynamic-select",
+          "command": "docker compose config --services",
+          "prompt": "Select a service: "
+        },
+        {
+          "name": "$$",
+          "description": "program"
+        }
+      ]
+    }
+  ]
+}
+```
+
+### Inspect a container using jless
+
+![](docs/jless.gif)
 
 ## Features
 - Dynamic generation of Emacs **interactive functions** from JSON specifications
