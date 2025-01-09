@@ -22,12 +22,11 @@
 (require 'json)
 (require 'term)
 
-(eval-when-compile
-  (defvar cli2eli-use-eat
-    (condition-case nil
-        (progn (require 'eat) t)
-      (error nil))
-    "Whether to use eat instead of term."))
+(defvar cli2eli-use-eat
+  (condition-case nil
+      (progn (require 'eat) t)
+    (error nil))
+  "Whether to use eat instead of term.")
 
 (defgroup cli2eli nil
   "Command line interface to Emacs Lauch interface."
