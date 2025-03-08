@@ -125,6 +125,20 @@ Use `M-x cli2eli-load-tool` to select a JSON file to load the configuration. Alt
 
 After generating the interactive functions, you can directly invoke the commands associated with your external CLI tools in Emacs. Each command will have a unique prefix, as specified in your JSON configuration, ensuring easy access and organization.
 
+## Config the display window
+
+By default, cli2eli displays the buffer window at the bottom. You can use the following setting to display it on another side vertically.
+
+``` lisp
+(setq cli2eli-output-buffer-display-option #'display-buffer-other-frame)
+```
+
+This is particularly useful when you want to grep the content of a command output.
+
+For example, you can set up a command to execute unit tests and then grep the content in the buffer. With hyperbole, you can jump to the problematic file by pressing `Alt + RETURN` on the line of filename:line. 
+
+Both buffers - the hyperbole-created buffer and the cli2eli buffer - support `q` to quit. This allows you to seamlessly return to the original file buffer.
+
 ### EAT
 
 [eat](https://codeberg.org/akib/emacs-eat) will be used if it is installed, otherwise fallback to built-in `term`, for displaying the command output buffer and start process asynchronously, becasuse it is blazingly fast.
