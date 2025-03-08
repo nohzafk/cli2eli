@@ -374,6 +374,27 @@ docker ps --format '{{.ID}} {{.Names}}' | grep <something> | awk '{print $1}'
 
 The `current-file` type will use `(buffer-file-name)` to get the path of the current file. This will automatically pass the path of the current file to the argument when the command is executed, without requiring user to input the value.
 
+
+#### 5.4 current-file-relative-path
+```json
+{
+  "tool": "quick-run",
+  "commands": [
+    {
+      "name": "pytest",
+      "arguments": [
+        {
+          "name": "-s $$",
+          "type": "current-file-relative-path"
+        }
+      ]
+    }
+  ]
+}
+```
+
+Similar to the `current-file` type, `current-file-relative-path` uses the relative path of the current file relative to the project root.
+
 ### 6. Chain call
 ```json
 {

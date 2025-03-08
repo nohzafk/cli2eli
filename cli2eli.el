@@ -56,9 +56,12 @@
   (with-temp-buffer
     (insert json-string)
     (goto-char (point-min))
-    ;; Remove comments
+    ;; Remove comments, but be careful not to match inside string literals
+    (goto-char (point-min))
     (while (re-search-forward "//.*$" nil t)
-      (replace-match ""))
+      (let ((syntax (syntax-ppss)))
+        (when (not (nth 3 syntax)) ; Only replace if not inside a string
+          (replace-match ""))))
     ;; Remove $schema line
     (goto-char (point-min))
     (when (re-search-forward "^\\s-*\"\\$schema\".*$" nil t)
@@ -232,6 +235,9 @@ CMD-EXTRA-ARGUMENTS is a boolean indicating whether extra arguments are needed."
                  (read-directory-name ,(cli2eli--argument-prompt arg-name arg-desc))))))
             ((string= arg-type "current-file")
              `(or (buffer-file-name) ""))
+            ((string= arg-type "current-file-relative-path")
+             `(or (file-relative-name (buffer-file-name) (cli2eli--get-working-directory))
+                  "" ))
             (choices
              `(let ((completion-ignore-case t)
                     (choices (mapcar (lambda (choice)
@@ -262,13 +268,13 @@ regardless of editing a local file or a remote file through Tramp."
   (let* ((working-directory (cli2eli--get-working-directory))
          (output (execute-local-command command working-directory))
          (lines (split-string output "\n" t))
-         (selection (completing-read prompt lines nil t))
-         (transformed (if transform
-                          (execute-local-command
-                           (format "echo %s | %s" (shell-quote-argument selection) transform)
-                           working-directory)
-                        selection)))
-    (string-trim transformed)))
+         (selection (completing-read prompt lines nil t)))
+    (if transform
+        (string-trim
+         (execute-local-command
+          (format "echo %s | %s" (shell-quote-argument selection) transform)
+          working-directory))
+      selection)))
 
 (defun execute-local-command (command &optional directory)
   "Execute COMMAND on the local host and return its output as a string.
