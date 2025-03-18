@@ -333,6 +333,9 @@ PROCESSED-ARGS is an optional string of additional arguments."
         (if cli2eli-use-eat
             (eat-mode)
           (term-mode))
+
+        (compilation-minor-mode)
+
         (erase-buffer)
         (setq default-directory cwd)
         (insert (format "Working Directory: %s\nRunning: %s\n\n"
