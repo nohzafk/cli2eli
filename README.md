@@ -135,13 +135,27 @@ By default, cli2eli displays the buffer window at the bottom. You can use the fo
 
 This is particularly useful when you want to grep the content of a command output.
 
-For example, you can set up a command to execute unit tests and then grep the content in the buffer. With hyperbole, you can jump to the problematic file by pressing `Alt + RETURN` on the line of filename:line. 
+For example, you can set up a command to execute unit tests and then grep the content in the buffer. With hyperbole, you can jump to the problematic file by pressing `Alt + RETURN` on the line of filename:line.
 
 Both buffers - the hyperbole-created buffer and the cli2eli buffer - support `q` to quit. This allows you to seamlessly return to the original file buffer.
 
-### EAT
+### Terminal Backend
 
-[eat](https://codeberg.org/akib/emacs-eat) will be used if it is installed, otherwise fallback to built-in `term`, for displaying the command output buffer and start process asynchronously, becasuse it is blazingly fast.
+CLI2ELI supports terminal backends for command output. By default, it auto-detects available backends in this priority order: **eat > term**.
+
+You can customize the backend via `cli2eli-terminal-backend`:
+
+```elisp
+;; Auto-detect (default): eat > term
+(setq cli2eli-terminal-backend 'auto)
+
+;; Force a specific backend
+(setq cli2eli-terminal-backend 'eat)    ; Use eat (recommended)
+(setq cli2eli-terminal-backend 'term)   ; Use built-in term
+```
+
+- [eat](https://codeberg.org/akib/emacs-eat) - Recommended, pure Emacs Lisp with good performance
+- term - Built-in fallback, always available
 
 
 ## Motivation

@@ -22,16 +22,43 @@
 (require 'json)
 (require 'term)
 
-(defvar cli2eli-use-eat
-  (condition-case nil
-      (progn (require 'eat) t)
-    (error nil))
-  "Whether to use eat instead of term.")
-
 (defgroup cli2eli nil
-  "Command line interface to Emacs Lauch interface."
-  :group 'eamcs)
+  "Command line interface to Emacs Launch interface."
+  :group 'tools)
 
+(defcustom cli2eli-terminal-backend 'auto
+  "Terminal backend to use for command execution.
+When set to `auto', will try eat first, then fall back to term.
+Can be set to `eat' or `term' to force a specific backend."
+  :group 'cli2eli
+  :type '(choice (const :tag "Auto-detect (eat > term)" auto)
+                 (const :tag "eat" eat)
+                 (const :tag "term" term)))
+
+(defvar cli2eli--available-backends nil
+  "Cached list of available terminal backends.")
+
+(defun cli2eli--detect-backends ()
+  "Detect available terminal backends."
+  (unless cli2eli--available-backends
+    (setq cli2eli--available-backends
+          (delq nil
+                (list
+                 (when (condition-case nil (require 'eat nil t) (error nil)) 'eat)
+                 'term))))
+  cli2eli--available-backends)
+
+(defun cli2eli--get-backend ()
+  "Get the terminal backend to use."
+  (cli2eli--detect-backends)
+  (if (eq cli2eli-terminal-backend 'auto)
+      (car cli2eli--available-backends)
+    (if (memq cli2eli-terminal-backend cli2eli--available-backends)
+        cli2eli-terminal-backend
+      (progn
+        (message "[CLI2ELI] Backend %s not available, falling back to %s"
+                 cli2eli-terminal-backend (car cli2eli--available-backends))
+        (car cli2eli--available-backends)))))
 
 (defcustom cli2eli-output-buffer-name "*CLI2ELI Output*"
   "Buffer name for dedicated buffer."
@@ -322,48 +349,50 @@ PROCESSED-ARGS is an optional string of additional arguments."
          (processed-args (or processed-args ""))
          (command (format "%s %s" cmd-command processed-args))
          (cwd (expand-file-name (cli2eli--get-working-directory)))
-         (existing-window (get-buffer-window output-buffer))
-         (shell (or (alist-get 'shell cli2eli--current-tool) "/bin/bash")))
+         (shell (or (alist-get 'shell cli2eli--current-tool) "/bin/bash"))
+         (backend (cli2eli--get-backend)))
 
     (message "[CLI2ELI] Working Directory: %s" (cli2eli--get-working-directory))
-    (message "[CLI2ELI] Running command: %s" command)
+    (message "[CLI2ELI] Running command: %s (backend: %s)" command backend)
 
+    ;; Kill any existing process in the buffer
+    (when-let ((proc (get-buffer-process output-buffer)))
+      (delete-process proc))
+
+    ;; Set up buffer mode and prepare for display
     (with-current-buffer output-buffer
       (let ((inhibit-read-only t))
-        (if cli2eli-use-eat
-            (eat-mode)
-          (term-mode))
-
+        (pcase backend
+          ('eat (eat-mode))
+          ('term (term-mode)))
         (compilation-minor-mode)
-
         (erase-buffer)
         (setq default-directory cwd)
-        (insert (format "Working Directory: %s\nRunning: %s\n\n"
-                        (cli2eli--get-working-directory)
-                        command))
+        (insert (format "Working Directory: %s\nRunning: %s\n\n" cwd command))))
 
-        (if cli2eli-use-eat
-            (eat-exec output-buffer
-                      (format "\"%s\"" command)
-                      shell
-                      nil
-                      (list "-c" (format "cd %s && %s"
-                                         (shell-quote-argument cwd)
-                                         command)))
-          (term-exec output-buffer
-                     (format "\"%s\"" command)
-                     shell
-                     nil
-                     (list "-c" (format "cd %s && %s"
-                                        (shell-quote-argument cwd)
-                                        command))))))
+    ;; Display the buffer BEFORE running exec so terminal knows window size
+    (let ((win (get-buffer-window output-buffer)))
+      (if win
+          (select-window win)
+        (display-buffer output-buffer cli2eli-output-buffer-display-option)
+        (setq win (get-buffer-window output-buffer))
+        (when win (select-window win))))
 
-    (if existing-window
-        (select-window existing-window)
-      (display-buffer output-buffer cli2eli-output-buffer-display-option)
-      (select-window (get-buffer-window output-buffer)))
+    ;; Now run the command after buffer is displayed
+    (with-current-buffer output-buffer
+      (let ((exec-args (list output-buffer
+                             (format "\"%s\"" command)
+                             shell
+                             nil
+                             (list "-c" (format "cd %s && %s"
+                                                (shell-quote-argument cwd)
+                                                command)))))
+        (pcase backend
+          ('eat (apply #'eat-exec exec-args))
+          ('term (apply #'term-exec exec-args)))))
 
-    (set-window-point (get-buffer-window output-buffer) (point-max))
+    (when-let ((win (get-buffer-window output-buffer)))
+      (set-window-point win (point-max)))
     (cli2eli--scroll-to-bottom)))
 
 (defun cli2eli--process-sentinel (process event)
