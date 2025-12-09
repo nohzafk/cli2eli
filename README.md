@@ -84,6 +84,7 @@ Quick and effective.
 - Dynamic generation of Emacs **interactive functions** from JSON specifications
 - Utilization of Emacs' **completion system** for argument input and selection
 - Support for various argument types: free text, choices, directory paths, and dynamic selections
+- **Stdin support**: Pipe buffer/region content to commands for text transformation
 - Command chaining for complex operations
 - Context-aware command execution (e.g., from git root)
 - Support running commands locally even when editing remote file in a **container**
@@ -423,7 +424,40 @@ The `current-file` type will use `(buffer-file-name)` to get the path of the cur
 
 Similar to the `current-file` type, `current-file-relative-path` uses the relative path of the current file relative to the project root.
 
-### 6. Chain call
+### 6. Stdin - pipe buffer/region content to command
+
+The `stdin` property allows you to pipe buffer or region content directly to a command. This is useful for text transformation commands like formatters, converters, or filters.
+
+```json
+{
+  "tool": "cli-transform",
+  "cwd": "default",
+  "commands": [
+    {
+      "name": "format JSON",
+      "description": "Format JSON using jq",
+      "command": "jq '.'",
+      "stdin": "region"
+    },
+    {
+      "name": "format SQL",
+      "description": "Format SQL using sqlfmt",
+      "command": "sqlfmt -",
+      "stdin": "region"
+    }
+  ]
+}
+```
+
+The `stdin` field accepts two values:
+- `"region"`: Uses selected text, or entire buffer if no selection
+- `"buffer"`: Always uses entire buffer content
+
+When `stdin` is set, the command runs synchronously using `call-process-region` instead of the terminal backend, and output is displayed in the CLI2ELI output buffer with a header line showing the command.
+
+**Note:** For stdin commands, use `"cwd": "default"` since they typically don't depend on a git repository context.
+
+### 7. Chain call
 ```json
 {
   "tool": "docker",
@@ -550,7 +584,7 @@ This will generate two Emacs commands:
         }
       ],
       "chain-call": "remove container",
-      "china-pass": true
+      "chain-pass": true
     },
     {
       "name": "remove container",
