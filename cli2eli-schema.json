@@ -38,7 +38,8 @@
                 },
                 "type": {
                     "type": "string",
-                    "pattern": "current-file|directory|dynamic-select"
+                    "enum": ["current-file", "current-file-relative-path", "directory", "dynamic-select"],
+                    "description": "Argument type for special input handling"
                 },
                 "command": {
                   "type": "string"
@@ -56,8 +57,13 @@
           "chain-call": {
             "type": "string"
           },
-          "china-pass": {
+          "chain-pass": {
             "type": "boolean"
+          },
+          "stdin": {
+            "type": "string",
+            "enum": ["region", "buffer"],
+            "description": "Source for stdin input. 'region' uses selected text (or entire buffer if no selection). 'buffer' always uses entire buffer content."
           }
         },
         "required": ["name", "command"]

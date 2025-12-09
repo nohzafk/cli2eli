@@ -172,8 +172,9 @@ TOOL is an alist containing the tool configuration."
             (cmd-extra-arguments (cli2eli--value-to-bool (alist-get 'extra_arguments cmd)))
             (args (append (alist-get 'arguments cmd) nil))      ; Convert arguments vector to list
             (chain-call (alist-get 'chain-call cmd))
-            (chain-pass (alist-get 'chain-pass cmd)))
-        (cli2eli--define-command tool-name cmd-name cmd-command cmd-desc cmd-extra-arguments args chain-call chain-pass)))))
+            (chain-pass (alist-get 'chain-pass cmd))
+            (stdin (alist-get 'stdin cmd)))
+        (cli2eli--define-command tool-name cmd-name cmd-command cmd-desc cmd-extra-arguments args chain-call chain-pass stdin)))))
 
 (defun cli2eli--sanitize-function-name (name)
   "Replace invalid characters in NAME for use in Emacs function names."
@@ -182,7 +183,7 @@ TOOL is an alist containing the tool configuration."
    "-"
    (downcase name)))
 
-(defun cli2eli--define-command (tool-name cmd-name cmd-command cmd-desc cmd-extra-arguments args chain-call chain-pass)
+(defun cli2eli--define-command (tool-name cmd-name cmd-command cmd-desc cmd-extra-arguments args chain-call chain-pass &optional stdin)
   "Define an Emacs function for a CLI command.
 TOOL-NAME is the name of the CLI tool.
 CMD-NAME is the name of the specific command.
@@ -191,7 +192,8 @@ CMD-DESC is the description of the command.
 CMD-EXTRA-ARGUMENTS is whether command need additional arguments input.
 ARGS is a list of argument specifications.
 CHAIN-CALL is the next executed interactive command.
-CHAIN-PASS is whethe pass the result to CHAIN-CALL command."
+CHAIN-PASS is whethe pass the result to CHAIN-CALL command.
+STDIN is the source for stdin input (\"region\" or \"buffer\")."
   (unless cmd-command
     (error "Command of %s %s is nil" tool-name cmd-name))
 
@@ -229,7 +231,10 @@ CHAIN-PASS is whethe pass the result to CHAIN-CALL command."
                         " ")
                        " "
                        additional-args))))
-               (let ((chain-result (cli2eli--run-command ,cmd-command processed-args)))
+               (let ((chain-result
+                      ,(if stdin
+                           `(cli2eli--run-command-with-stdin ,cmd-command processed-args ,stdin)
+                         `(cli2eli--run-command ,cmd-command processed-args))))
                  ,(when chain-call
                     `(let* ((next-func (intern ,(concat tool-name "-" (cli2eli--sanitize-function-name chain-call))))
                             (next-func-args (if ,chain-pass (list chain-result) nil)))
@@ -318,9 +323,10 @@ If DIRECTORY is provided, execute the command in that directory."
      ((null cwd) (cli2eli--get-default-directory))
      ((string= cwd "") (cli2eli--get-default-directory))
      ((string= cwd "default") (cli2eli--get-default-directory))
-     ((string= cwd "git-root") (locate-dominating-file
-                                (or (cli2eli--get-default-directory) ".")
-                                ".git"))
+     ((string= cwd "git-root") (or (locate-dominating-file
+                                    (or (cli2eli--get-default-directory) ".")
+                                    ".git")
+                                   (cli2eli--get-default-directory)))
      (t cwd))))
 
 (defun cli2eli--get-default-directory ()
@@ -340,6 +346,72 @@ If DIRECTORY is provided, execute the command in that directory."
     (if (string-empty-p local-folder)
         default-directory
       local-folder)))
+
+(defun cli2eli--get-stdin-content (stdin-source)
+  "Get content based on STDIN-SOURCE.
+STDIN-SOURCE can be \"region\" or \"buffer\".
+For \"region\", returns selected text or entire buffer if no selection.
+For \"buffer\", always returns entire buffer content."
+  (cond
+   ((string= stdin-source "region")
+    (if (use-region-p)
+        (buffer-substring-no-properties (region-beginning) (region-end))
+      (buffer-substring-no-properties (point-min) (point-max))))
+   ((string= stdin-source "buffer")
+    (buffer-substring-no-properties (point-min) (point-max)))
+   (t
+    (error "Unknown stdin source: %s" stdin-source))))
+
+(defun cli2eli--run-command-with-stdin (cmd-command processed-args stdin-source)
+  "Run a CLI command with stdin from buffer/region and display output.
+CMD-COMMAND is the specific command.
+PROCESSED-ARGS is an optional string of additional arguments.
+STDIN-SOURCE is \"region\" or \"buffer\"."
+  (let* ((output-buffer (get-buffer-create cli2eli-output-buffer-name))
+         (processed-args (or processed-args ""))
+         (command (string-trim (format "%s %s" cmd-command processed-args)))
+         (cwd (expand-file-name (cli2eli--get-working-directory)))
+         (shell (or (alist-get 'shell cli2eli--current-tool) "/bin/bash"))
+         (stdin-content (cli2eli--get-stdin-content stdin-source)))
+
+    (message "[CLI2ELI] Working Directory: %s" cwd)
+    (message "[CLI2ELI] Running command with stdin (%s): %s" stdin-source command)
+
+    ;; Kill any existing process in the buffer
+    (when-let ((proc (get-buffer-process output-buffer)))
+      (delete-process proc))
+
+    ;; Run command with stdin and capture output
+    (let ((output
+           (with-temp-buffer
+             (insert stdin-content)
+             (let ((default-directory cwd))
+               (call-process-region (point-min) (point-max)
+                                    shell
+                                    t           ; delete region (replace with output)
+                                    t           ; output to current buffer
+                                    nil         ; no display
+                                    "-c" command))
+             (buffer-string))))
+
+      ;; Display output in the output buffer
+      (with-current-buffer output-buffer
+        (let ((inhibit-read-only t))
+          (special-mode)
+          (erase-buffer)
+          (setq header-line-format
+                (format " Command: %s" command))
+          (insert output)))
+
+      ;; Display the buffer
+      (let ((win (get-buffer-window output-buffer)))
+        (if win
+            (select-window win)
+          (display-buffer output-buffer cli2eli-output-buffer-display-option)
+          (setq win (get-buffer-window output-buffer))
+          (when win (select-window win))))
+
+      output)))
 
 (defun cli2eli--run-command (cmd-command &optional processed-args)
   "Run a CLI command asynchronously and display output in a dedicated buffer.
