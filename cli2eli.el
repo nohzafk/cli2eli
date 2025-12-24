@@ -35,6 +35,19 @@ Can be set to `eat' or `term' to force a specific backend."
                  (const :tag "eat" eat)
                  (const :tag "term" term)))
 
+(defcustom cli2eli-default-eat-mode 'semi-char
+  "Default input mode for eat terminal.
+This controls which keybindings are captured by the terminal vs Emacs.
+- semi-char: Terminal gets most keys, but C-x/C-c/M-x reserved for Emacs
+- char: All keys sent to terminal (full terminal experience)
+- emacs: Standard Emacs editing keybindings
+- line: Line-based input mode"
+  :group 'cli2eli
+  :type '(choice (const :tag "Semi-char (recommended: terminal keys + Emacs C-x/C-c)" semi-char)
+                 (const :tag "Char (all keys to terminal)" char)
+                 (const :tag "Emacs (standard Emacs editing)" emacs)
+                 (const :tag "Line (line-based input)" line)))
+
 (defvar cli2eli--available-backends nil
   "Cached list of available terminal backends.")
 
@@ -435,7 +448,14 @@ PROCESSED-ARGS is an optional string of additional arguments."
     (with-current-buffer output-buffer
       (let ((inhibit-read-only t))
         (pcase backend
-          ('eat (eat-mode))
+          ('eat
+           (eat-mode)
+           ;; Apply the configured eat input mode
+           (pcase cli2eli-default-eat-mode
+             ('semi-char (eat-semi-char-mode))
+             ('char (eat-char-mode))
+             ('emacs (eat-emacs-mode))
+             ('line (eat-line-mode))))
           ('term (term-mode)))
         (compilation-minor-mode)
         (erase-buffer)
