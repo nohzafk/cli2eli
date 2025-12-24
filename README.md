@@ -158,6 +158,61 @@ You can customize the backend via `cli2eli-terminal-backend`:
 - [eat](https://codeberg.org/akib/emacs-eat) - Recommended, pure Emacs Lisp with good performance
 - term - Built-in fallback, always available
 
+### TUI Application Support
+
+CLI2ELI fully supports TUI (Text User Interface) applications like `glow`, `lazygit`, `htop`, etc. When using the `eat` backend:
+
+**Eat Input Modes**
+
+By default, CLI2ELI uses `semi-char` mode which provides a good balance:
+- Terminal gets most keys (vim navigation, arrow keys, etc.)
+- Emacs keybindings like `C-x`, `C-c`, and `M-x` are reserved for Emacs
+
+You can customize this via `cli2eli-default-eat-mode`:
+
+```elisp
+;; Semi-char (default): Terminal keys + Emacs C-x/C-c/M-x
+(setq cli2eli-default-eat-mode 'semi-char)
+
+;; Char: All keys sent to terminal (full terminal experience)
+(setq cli2eli-default-eat-mode 'char)
+
+;; Emacs: Standard Emacs editing keybindings
+(setq cli2eli-default-eat-mode 'emacs)
+
+;; Line: Line-based input mode
+(setq cli2eli-default-eat-mode 'line)
+```
+
+**Automatic Window Resize**
+
+TUI applications automatically resize and redraw when the Emacs window configuration changes (e.g., after `C-x 1` to delete other windows). This ensures the terminal content remains properly aligned.
+
+**Example: Markdown preview with glow**
+
+```json
+{
+  "$schema": "https://raw.githubusercontent.com/nohzafk/cli2eli/main/cli2eli-schema.json",
+  "tool": "cli-markdown",
+  "cwd": "default",
+  "commands": [
+    {
+      "name": "glow",
+      "description": "Render current markdown file with glow TUI",
+      "command": "glow -s dark -t",
+      "arguments": [
+        {
+          "name": "$",
+          "type": "current-file"
+        }
+      ]
+    }
+  ]
+}
+```
+
+This creates a `cli-markdown-glow` command that renders the current markdown file in glow's TUI mode with vim-style navigation (`j/k` to scroll, `q` to quit).
+
 
 ## Motivation
 During software development, especially in containerized environments, developers often find themselves repeatedly executing similar command sequences. For instance:
