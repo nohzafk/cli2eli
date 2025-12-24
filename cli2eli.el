@@ -480,7 +480,10 @@ PROCESSED-ARGS is an optional string of additional arguments."
              ('semi-char (eat-semi-char-mode))
              ('char (eat-char-mode))
              ('emacs (eat-emacs-mode))
-             ('line (eat-line-mode))))
+             ('line (eat-line-mode)))
+           ;; Add window resize handler for TUI applications
+           (add-hook 'window-configuration-change-hook
+                     #'cli2eli--eat-handle-window-resize nil t))
           ('term (apply #'term-exec exec-args)))))
 
     (when-let ((win (get-buffer-window output-buffer)))
@@ -501,6 +504,20 @@ PROCESSED-ARGS is an optional string of additional arguments."
     (when win
       (with-selected-window win
         (goto-char (point-max))))))
+
+(defun cli2eli--eat-handle-window-resize ()
+  "Handle window resize for eat terminal buffers.
+Forces eat to resize and redisplay when window configuration changes."
+  (when (and (eq major-mode 'eat-mode)
+             (bound-and-true-p eat-terminal)
+             (get-buffer-process (current-buffer)))
+    (let* ((win (get-buffer-window (current-buffer)))
+           (width (when win (window-max-chars-per-line win)))
+           (height (when win (floor (window-screen-lines win)))))
+      (when (and win width height (> width 0) (> height 0))
+        (let ((inhibit-read-only t))
+          (eat-term-resize eat-terminal width height)
+          (eat-term-redisplay eat-terminal))))))
 
 (provide 'cli2eli)
 
