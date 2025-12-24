@@ -448,14 +448,7 @@ PROCESSED-ARGS is an optional string of additional arguments."
     (with-current-buffer output-buffer
       (let ((inhibit-read-only t))
         (pcase backend
-          ('eat
-           (eat-mode)
-           ;; Apply the configured eat input mode
-           (pcase cli2eli-default-eat-mode
-             ('semi-char (eat-semi-char-mode))
-             ('char (eat-char-mode))
-             ('emacs (eat-emacs-mode))
-             ('line (eat-line-mode))))
+          ('eat (eat-mode))
           ('term (term-mode)))
         (compilation-minor-mode)
         (erase-buffer)
@@ -480,7 +473,14 @@ PROCESSED-ARGS is an optional string of additional arguments."
                                                 (shell-quote-argument cwd)
                                                 command)))))
         (pcase backend
-          ('eat (apply #'eat-exec exec-args))
+          ('eat
+           (apply #'eat-exec exec-args)
+           ;; Apply the configured eat input mode after process starts
+           (pcase cli2eli-default-eat-mode
+             ('semi-char (eat-semi-char-mode))
+             ('char (eat-char-mode))
+             ('emacs (eat-emacs-mode))
+             ('line (eat-line-mode))))
           ('term (apply #'term-exec exec-args)))))
 
     (when-let ((win (get-buffer-window output-buffer)))
