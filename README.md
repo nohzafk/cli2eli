@@ -116,6 +116,14 @@ Use `M-x cli2eli-load-tool` to select a JSON file to load the configuration. Alt
 
 After loading, generated interactive functions are available via `M-x`. Each function is named `<tool>-<command>` (e.g., `cli-quickrun-just`).
 
+### Command Palette
+
+Use `cli2eli-run` to open a scoped picker that lists only CLI2ELI-generated commands, with descriptions shown as annotations. Bind it to a key for quick access:
+
+```elisp
+(global-set-key (kbd "<f7>") #'cli2eli-run)
+```
+
 ## Configuration
 
 ### JSON Schema

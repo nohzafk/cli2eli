@@ -467,6 +467,28 @@ OPTIONAL-VARS lists variable names where empty values remove the placeholder."
      (message "[CLI2ELI] Error loading configuration: %s" (error-message-string err))
      nil)))
 
+(defun cli2eli-run ()
+  "Interactively select and run a CLI2ELI generated command.
+Shows all generated commands with their descriptions as annotations."
+  (interactive)
+  (unless cli2eli--generated-functions
+    (user-error "No CLI2ELI commands loaded"))
+  (let* ((candidates
+          (mapcar (lambda (sym)
+                    (let ((doc (or (documentation sym) "")))
+                      (cons (symbol-name sym) doc)))
+                  cli2eli--generated-functions))
+         (annotate (lambda (cand)
+                     (let ((doc (cdr (assoc cand candidates))))
+                       (if (string-empty-p doc) ""
+                         (concat "  " (propertize doc 'face 'completions-annotations))))))
+         (metadata `(metadata (annotation-function . ,annotate)))
+         (collection (lambda (str pred action)
+                       (if (eq action 'metadata) metadata
+                         (complete-with-action action candidates str pred))))
+         (choice (completing-read "CLI2ELI: " collection nil t)))
+    (call-interactively (intern choice))))
+
 (defun cli2eli-remove-generated-functions ()
   "Remove all previously generated CLI2ELI functions."
   (interactive)
