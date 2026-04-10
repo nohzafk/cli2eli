@@ -5,11 +5,8 @@ Emacs package that dynamically generates interactive Emacs functions from JSON c
 ## Quick Start
 
 ```elisp
-;; Load a tool configuration
 (cli2eli-load-tool "/path/to/tool-config.json")
-
-;; Generated functions become available as interactive commands
-;; M-x my-tool-command
+;; Generated functions become available as M-x <tool>-<command>
 ```
 
 ## Project Structure
@@ -22,26 +19,29 @@ README.md            # Documentation with usage examples
 
 ## Key Concepts
 
-**Code Generation Pattern**: JSON configuration → Parse → Generate Emacs functions at runtime via `fset`
+**Command Templates**: Commands use `${var}` placeholders resolved from built-in variables or declared user inputs. Example: `"command": "just ${recipe} ${extra}"`
 
-**Argument Types**: Supports `string`, `directory`, `current-file`, `choices`, and `dynamic-select` (runs shell command to generate options)
+**Built-in Variables**: `${file}`, `${file-relative}`, `${dir}` are auto-resolved from Emacs context without needing input declarations.
+
+**Input Types**: `prompt` (free text), `choice` (static list), `shell` (dynamic from command output), `directory` (Emacs picker). Undeclared template vars default to prompt.
+
+**Output Modes**: `terminal` (eat/term, default), `buffer` (read-only display), `replace` (in-place text replacement for stdin commands).
 
 **Working Directory**: Resolves via `git-root`, `default`, or explicit paths. Special handling for Docker containers via TRAMP.
-
-**Command Chaining**: `chain-call` executes commands sequentially; `chain-pass` passes output as arguments.
 
 ## Architecture
 
 All logic lives in `cli2eli.el`:
 
 1. **Entry Point**: `cli2eli-load-tool` - loads and parses JSON config
-2. **Generator**: `cli2eli--generate-functions` - iterates commands, creates functions
-3. **Command Builder**: `cli2eli--define-command` - builds interactive lambda with `fset`
-4. **Interactive Specs**: `cli2eli--generate-interactive-spec` - creates completion systems using closures
+2. **Template Engine**: `cli2eli--parse-template-vars`, `cli2eli--expand-template` - extract `${var}` placeholders and substitute values
+3. **Input Handling**: `cli2eli--generate-interactive-spec`, `cli2eli--input-form` - generate Emacs interactive specs from input declarations
+4. **Command Builder**: `cli2eli--define-command` - builds interactive lambda with `fset`, wiring template expansion to the appropriate execution mode
+5. **Execution**: `cli2eli--run-command` (terminal), `cli2eli--run-command-to-buffer` (buffer), `cli2eli--run-command-with-stdin` (stdin+buffer), `cli2eli--run-command-replace` (stdin+replace)
 
 ## Naming Conventions
 
-- Public functions: `cli2eli-*` (no dash prefix)
+- Public functions: `cli2eli-*` (single dash)
 - Private functions: `cli2eli--*` (double dash)
 - Generated function names: lowercase, non-alphanumeric replaced with hyphens
 
@@ -52,9 +52,11 @@ All logic lives in `cli2eli.el`:
 
 ## Common Development Tasks
 
-**Add new argument type**: Extend the `cond` in `cli2eli--generate-interactive-spec` (~line 220)
+**Add new input type**: Extend the `cond` in `cli2eli--input-form`
 
-**Modify command execution**: Update `cli2eli--define-command` (~line 115)
+**Add new output mode**: Add a case in `cli2eli--define-command`'s output dispatch, implement the execution function
+
+**Add new built-in variable**: Add to `cli2eli--builtin-vars` and `cli2eli--resolve-builtin`
 
 **Add configuration options**: Update JSON schema in `cli2eli-schema.json`, then handle in parsing logic
 
@@ -68,7 +70,7 @@ Configurable via `cli2eli-terminal-backend`:
 ## Dependencies
 
 Required (core Emacs):
-- `json`, `cl-lib`, `ansi-color`, `term`
+- `json`, `cl-lib`, `term`
 
 Optional:
 - `eat` - recommended terminal emulator (good performance, pure Emacs Lisp)
@@ -80,11 +82,3 @@ No automated tests. Verify changes manually:
 1. Create a test JSON config based on README examples
 2. Load with `cli2eli-load-tool`
 3. Run generated commands and verify behavior
-
-## Variable Replacement
-
-Arguments support `$$` placeholders that reference other argument values:
-```json
-{"name": "container", "type": "string"},
-{"name": "path", "prompt": "Path in $$container$$:"}
-```

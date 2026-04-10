@@ -3,10 +3,16 @@
   "type": "object",
   "properties": {
     "tool": {
-      "type": "string"
+      "type": "string",
+      "description": "Tool name, used as prefix for generated function names"
     },
     "cwd": {
-      "type": "string"
+      "type": "string",
+      "description": "Working directory: 'default', 'git-root', or an explicit path"
+    },
+    "shell": {
+      "type": "string",
+      "description": "Shell to use for command execution (default: /bin/bash)"
     },
     "commands": {
       "type": "array",
@@ -14,61 +20,61 @@
         "type": "object",
         "properties": {
           "name": {
-            "type": "string"
+            "type": "string",
+            "description": "Command name, combined with tool name for the function name"
           },
           "description": {
-            "type": "string"
+            "type": "string",
+            "description": "Description shown in Emacs help"
           },
           "command": {
-            "type": "string"
+            "type": "string",
+            "description": "Command template with ${var} placeholders. Built-in vars: ${file}, ${file-relative}, ${dir}"
           },
-          "arguments": {
-            "type": "array",
-            "items": {
+          "inputs": {
+            "type": "object",
+            "description": "Declared user inputs for template variables that need prompting",
+            "additionalProperties": {
               "type": "object",
               "properties": {
-                "name": {
-                  "type": "string"
-                },
-                "choices": {
-                  "type": "array"
-                },
-                "description": {
-                  "type": "string"
-                },
                 "type": {
-                    "type": "string",
-                    "enum": ["current-file", "current-file-relative-path", "directory", "dynamic-select"],
-                    "description": "Argument type for special input handling"
-                },
-                "command": {
-                  "type": "string"
+                  "type": "string",
+                  "enum": ["prompt", "choice", "shell", "directory"],
+                  "description": "Input type (default: prompt)"
                 },
                 "prompt": {
-                  "type": "string"
+                  "type": "string",
+                  "description": "Prompt text shown to user (default: capitalized variable name)"
                 },
-                "transform": {
-                  "type": "string"
+                "choices": {
+                  "type": "array",
+                  "description": "Static list of choices for completing-read"
+                },
+                "command": {
+                  "type": "string",
+                  "description": "Shell command whose output lines become completion candidates (for type: shell)"
+                },
+                "optional": {
+                  "type": "boolean",
+                  "description": "If true, empty input removes the placeholder from the command"
                 }
-              },
-              "required": ["name"]
+              }
             }
-          },
-          "chain-call": {
-            "type": "string"
-          },
-          "chain-pass": {
-            "type": "boolean"
           },
           "stdin": {
             "type": "string",
             "enum": ["region", "buffer"],
-            "description": "Source for stdin input. 'region' uses selected text (or entire buffer if no selection). 'buffer' always uses entire buffer content."
+            "description": "Source for stdin input. 'region' uses selected text (or buffer if no selection). 'buffer' always uses entire buffer."
+          },
+          "output": {
+            "type": "string",
+            "enum": ["terminal", "buffer", "replace"],
+            "description": "Output mode: 'terminal' (default) runs in eat/term, 'buffer' shows in read-only buffer, 'replace' replaces stdin source text"
           }
         },
         "required": ["name", "command"]
       }
     }
   },
-  "required": ["tool", "cwd", "commands"]
+  "required": ["tool", "commands"]
 }
