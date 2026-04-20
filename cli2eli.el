@@ -446,6 +446,7 @@ OPTIONAL-VARS lists variable names where empty values remove the placeholder."
           (setq cli2eli--generated-functions
                 (delete func-name cli2eli--generated-functions)))))))
 
+;;;###autoload
 (defun cli2eli-load-tool (json-file)
   "Load a CLI tool configuration from JSON-FILE."
   (interactive "fSelect JSON configuration file: ")
@@ -467,6 +468,7 @@ OPTIONAL-VARS lists variable names where empty values remove the placeholder."
      (message "[CLI2ELI] Error loading configuration: %s" (error-message-string err))
      nil)))
 
+;;;###autoload
 (defun cli2eli-run ()
   "Interactively select and run a CLI2ELI generated command.
 Shows all generated commands with their descriptions as annotations."
@@ -489,6 +491,7 @@ Shows all generated commands with their descriptions as annotations."
          (choice (completing-read "CLI2ELI: " collection nil t)))
     (call-interactively (intern choice))))
 
+;;;###autoload
 (defun cli2eli-remove-generated-functions ()
   "Remove all previously generated CLI2ELI functions."
   (interactive)
