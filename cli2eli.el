@@ -383,27 +383,30 @@ OPTIONAL-VARS lists variable names where empty values remove the placeholder."
 
     (message "[CLI2ELI] Generating function: %s" func-name)
 
-    (fset func-name
-          `(lambda (&rest input-values)
-             ,cmd-desc
-             (interactive ,interactive-spec)
-             (let* ((builtin-values
-                     (mapcar (lambda (v) (cons v (cli2eli--resolve-builtin v)))
-                             ',builtin-vars))
-                    (user-values
-                     (cl-mapcar #'cons ',user-vars input-values))
-                    (all-values (append builtin-values user-values))
-                    (command (cli2eli--expand-template
-                              ,cmd-command all-values ',optional-vars)))
-               ,(cond
-                 ((and stdin (string= output-mode "replace"))
-                  `(cli2eli--run-command-replace command ,stdin))
-                 (stdin
-                  `(cli2eli--run-command-with-stdin command ,stdin))
-                 ((string= output-mode "buffer")
-                  `(cli2eli--run-command-to-buffer command))
-                 (t
-                  `(cli2eli--run-command command))))))
+    (let ((captured-tool cli2eli--current-tool))
+      (fset func-name
+            `(lambda (&rest input-values)
+               ,cmd-desc
+               (interactive (let ((cli2eli--current-tool ',captured-tool))
+                              ,interactive-spec))
+               (let* ((cli2eli--current-tool ',captured-tool)
+                      (builtin-values
+                       (mapcar (lambda (v) (cons v (cli2eli--resolve-builtin v)))
+                               ',builtin-vars))
+                      (user-values
+                       (cl-mapcar #'cons ',user-vars input-values))
+                      (all-values (append builtin-values user-values))
+                      (command (cli2eli--expand-template
+                                ,cmd-command all-values ',optional-vars)))
+                 ,(cond
+                   ((and stdin (string= output-mode "replace"))
+                    `(cli2eli--run-command-replace command ,stdin))
+                   (stdin
+                    `(cli2eli--run-command-with-stdin command ,stdin))
+                   ((string= output-mode "buffer")
+                    `(cli2eli--run-command-to-buffer command))
+                   (t
+                    `(cli2eli--run-command command)))))))
 
     (push func-name cli2eli--generated-functions)))
 
